@@ -1,0 +1,16 @@
+使用方法：将项目以jar包形式引入新工程，在工程spring容器中直接注入一个jedisCleint:
+<!-- Redis操作 -->
+  <bean id="jedisClient" class="com.cloud.operation.core.utils.JedisClient">
+  	<constructor-arg><value>${jedis.maxActive}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxIdle}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxWaitMillis}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.host}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.port}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.type}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxRedirections}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.lockTimeOut}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.password}</value></constructor-arg>
+  </bean>
+  然后即可在项目中注入使用。
+  另外，工具代码中的的将jedis归还pool的returnResource方法已经在新版本中不用了。所以可将归还方法使用jedis的close方法。
+  
