@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.1.xsd"
+        default-lazy-init="true">
+  <description>Spring公共配置 </description>
+
+  <!-- Redis操作 -->
+  <bean id="jedisClient" class="com.cloud.operation.component.redis.JedisClient">
+  	<constructor-arg><value>${jedis.maxActive}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxIdle}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxWaitMillis}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.host}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.port}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.type}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.maxRedirections}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.lockTimeOut}</value></constructor-arg>
+  	<constructor-arg><value>${jedis.password}</value></constructor-arg>
+  </bean>
+  
+</beans>
