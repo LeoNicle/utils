@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * 消息注解
  * 
- * @author syd
+ *
  *
  */
 @Target(value = ElementType.METHOD)
