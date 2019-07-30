@@ -1,0 +1,105 @@
+package com.leo.cache;
+
+import com.leo.cache.entity.Employee;
+import com.leo.cache.mapper.EmployeeMapper;
+import com.leo.cache.service.LuaService;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.test.context.junit4.SpringRunner;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+public class CacheSpringBootApplicationTests {
+
+    @Autowired
+    RedisTemplate<Object, Employee> employeeRedisTemplate;
+
+    @Autowired
+    EmployeeMapper employeeMapper;
+
+    @Autowired
+    RedisTemplate redisTemplate;
+
+    @Autowired
+    LuaService luaService;
+
+    @Test
+    public void contextLoads() {
+        Employee emp = employeeMapper.getEmpById(1);
+        employeeRedisTemplate.opsForValue().set("demo-01",emp);
+    }
+
+    @Test
+    public  void test1(){
+        DefaultRedisScript<String> rs = new DefaultRedisScript<String>();
+        //设置脚本
+        rs.setScriptText("return 'Hello Redis' ");
+        //定义返回类型。注意如果没有这个定义，spring不会返回结果
+        rs.setResultType(String.class);
+        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
+        String str = (String)redisTemplate.execute(rs,stringRedisSerializer,stringRedisSerializer,null);
+        System.out.println(str);
+    }
+
+    @Test
+    public void test2(){
+        //定义lua脚本：判断两个字符串是否相同
+          /*
+            redis.call ('set', KEYS[1], ARGV[1])
+            redis.call ('set', KEYS[2], ARGV[2])
+            local str1 = redis.call ('get', KEYS [1])
+            local str2 = redis.call ('get', KEYS [2])
+            if str1 == str2 then
+            return 1
+            end
+            return 0
+        */
+        //注意脚本中KYS[l］和KYS[2］ 的写法，它们代表客户端传递的第一个键和第二个键，
+        //而ARGV[l］和ARGV[2］则表示客户端传递的第一个和第二个参数
+
+        String lua = "redis.call ('set', KEYS[1], ARGV[1]) \n"
+                + "redis.call ('set', KEYS[2], ARGV[2]) \n "
+                + " local str1 = redis.call ('get', KEYS [1]) \n "
+                + " local str2 = redis.call ('get', KEYS [2]) \n "
+                + " if str1 == str2 then \n "
+                + " return 1 \n "
+                + " end \n "
+                + " return 0 \n ";
+        System.out.println(lua);
+
+        DefaultRedisScript<Long> rs = new DefaultRedisScript<Long>();
+        //设置脚本
+        rs.setScriptText(lua);
+        //定义返回类型。注意如果没有这个定义，spring不会返回结果
+        rs.setResultType(Long.class);
+        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
+
+        //定义key
+        List<String> keyList = new ArrayList<>();
+        keyList.add("key1");
+        keyList.add("key2");
+        Long restult = (Long)redisTemplate.execute(rs,stringRedisSerializer,
+                stringRedisSerializer,keyList,"value1","value1");
+        System.out.println(restult==1);
+    }
+
+    @Test
+    public void test3() throws Exception {
+        while(true){
+            boolean b = luaService.accessLimit("172.16.2.13", 5, 20);
+            System.out.println(b);
+            TimeUnit.SECONDS.sleep(1);
+        }
+
+    }
+}
