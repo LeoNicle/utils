@@ -11,7 +11,7 @@ public class LuaConfiguration {
     @Bean
     public DefaultRedisScript<Boolean> testRedisScript() {
         DefaultRedisScript<Boolean> redisScript = new DefaultRedisScript<>();
-        redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("script.lua")));
+        redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("ratelimit.lua")));
         redisScript.setResultType(Boolean.class);
         return redisScript;
     }

@@ -6,7 +6,12 @@ import com.leo.cache.service.LuaService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.data.neo4j.DataNeo4jTest;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.ReturnType;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.serializer.RedisSerializer;
@@ -15,6 +20,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @RunWith(SpringRunner.class)
@@ -46,9 +52,21 @@ public class CacheSpringBootApplicationTests {
         rs.setScriptText("return 'Hello Redis' ");
         //定义返回类型。注意如果没有这个定义，spring不会返回结果
         rs.setResultType(String.class);
-        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
-        String str = (String)redisTemplate.execute(rs,stringRedisSerializer,stringRedisSerializer,null);
+
+        String sha1 = rs.getSha1();
+        System.out.println(sha1);
+        String str = (String)redisTemplate.execute(new RedisCallback() {
+            @Override
+            public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.evalSha(sha1, ReturnType.STATUS, 0, "".getBytes());
+            }
+        });
         System.out.println(str);
+
+
+//        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
+//        String str = (String)redisTemplate.execute(rs,stringRedisSerializer,stringRedisSerializer,null);
+//        System.out.println(str);
     }
 
     @Test
@@ -101,5 +119,34 @@ public class CacheSpringBootApplicationTests {
             TimeUnit.SECONDS.sleep(1);
         }
 
+    }
+
+    @Test
+    public void test4(){
+        List<String> keyList = new ArrayList<>();
+        keyList.add("test4-1");
+        keyList.add("test4-2");
+        Long l = luaService.runLua("test.lua", Long.class, keyList, "value41", "value42");
+        System.out.println(l.intValue()==1);
+    }
+
+    @Test
+    public void getid() throws Exception{
+        Integer threadSize =5;
+        final CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                for(int i =0 ;i<20;i++){
+                    System.out.println(Thread.currentThread().getName()+":"+luaService.nextIDLua());
+                }
+                countDownLatch.countDown();
+            }
+        };
+        for(int i =0;i<threadSize;i++){
+            new Thread(runnable,"线程"+i).start();
+        }
+        countDownLatch.await();
+        System.out.println("end");
     }
 }
