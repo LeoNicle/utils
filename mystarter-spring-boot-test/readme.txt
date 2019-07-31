@@ -1,0 +1,1 @@
+可以通过在properties文件中设置leo.starter.enabled=false/true来决定是否自动装配helloservice
