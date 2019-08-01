@@ -3,6 +3,7 @@ package com.leo.cache;
 import com.leo.cache.entity.Employee;
 import com.leo.cache.mapper.EmployeeMapper;
 import com.leo.cache.service.LuaService;
+import com.leo.cache.utils.RedisDistributedLock;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,9 @@ public class CacheSpringBootApplicationTests {
 
     @Autowired
     LuaService luaService;
+
+    @Autowired
+    RedisDistributedLock redisDistributedLock;
 
     @Test
     public void contextLoads() {
@@ -148,5 +152,50 @@ public class CacheSpringBootApplicationTests {
         }
         countDownLatch.await();
         System.out.println("end");
+    }
+
+    static String value=null ;
+
+    @Test
+    public void testlock() throws Exception{
+        Integer threadSize =5;
+        final CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                for(int i =0 ;i<5;i++){
+                    if(redisDistributedLock.setLock("lockKey",Thread.currentThread().getName(),5,TimeUnit.SECONDS)) {
+                        System.out.println(Thread.currentThread().getName() + "得到了锁");
+                        value = redisDistributedLock.get("lockKey");
+                        //解锁
+                        boolean result = redisDistributedLock.releaseLock("lockKey", value);
+                        System.out.println(value+"解锁："+result);
+                    }else{
+                        System.out.println(Thread.currentThread().getName()+"没有得到锁");
+                    }
+                }
+                countDownLatch.countDown();
+            }
+        };
+        for(int i =0;i<threadSize;i++){
+            new Thread(runnable,"线程"+i).start();
+        }
+        countDownLatch.await();
+        //超期解锁测试
+        try {
+            TimeUnit.SECONDS.sleep(10);
+        }catch (InterruptedException e){
+
+        }
+        //
+        if(value==null){
+            throw new RuntimeException("value is null");
+        }
+        System.out.println("===============");
+        System.out.println(value);
+        boolean result = redisDistributedLock.releaseLock("lockKey", value);
+        System.out.println("超期解锁："+result);
+        System.out.println("end");
+        redisDistributedLock.get("lockKey");
     }
 }
