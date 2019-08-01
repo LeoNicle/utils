@@ -4,6 +4,7 @@ import com.leo.cache.entity.Employee;
 import com.leo.cache.mapper.EmployeeMapper;
 import com.leo.cache.service.LuaService;
 import com.leo.cache.utils.RedisDistributedLock;
+import com.leo.cache.utils.RedisWithReentrantLock;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -197,5 +199,38 @@ public class CacheSpringBootApplicationTests {
         System.out.println("超期解锁："+result);
         System.out.println("end");
         redisDistributedLock.get("lockKey");
+    }
+
+    //测试重入分布式锁
+    @Autowired
+    RedisWithReentrantLock redisWithReentrantLock;
+    @Test
+    public void testReLock() throws Exception{
+        new Thread(() -> {
+            try {
+                TimeUnit.SECONDS.sleep(3);
+            }catch (Exception e){
+                System.out.println(e);
+            }
+            System.out.println("线程2加锁结果："+redisWithReentrantLock.lock("relockkey", "relockvalue", 20, TimeUnit.SECONDS));
+        }).start();
+
+        for (int i = 0; i <5 ; i++) {
+            boolean lock = redisWithReentrantLock.lock("relockkey", "relockvalue", 20, TimeUnit.SECONDS);
+            System.out.println("加锁"+lock+"后count:"+redisWithReentrantLock.getcount("relockkey"));
+            TimeUnit.SECONDS.sleep(1);
+        }
+        while(true){
+            boolean unlock = redisWithReentrantLock.unlock("relockkey", "relockvalue");
+            if(redisWithReentrantLock.getcount("relockkey")<=0){
+                System.out.println("全部解锁成功");
+                //再试一次
+//            System.out.println(redisWithReentrantLock.unlock("relockkey", "relockvalue"));
+                return;
+            }
+            System.out.println("此次解锁："+unlock+"后："+redisWithReentrantLock.getcount("relockkey"));
+        }
+
+        //
     }
 }
