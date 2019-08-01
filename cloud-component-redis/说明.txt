@@ -1,3 +1,6 @@
+注意：于2019年8月1日发现此代码中关于redis锁的部分烂的一批（公司高手写的），之前未细看，cache项目下有我写的给力的分布式锁+重入版（boot版的，还有测试方法）。
+
+
 使用方法：将项目以jar包形式引入新工程，在工程spring容器中直接注入一个jedisCleint:
 <!-- Redis操作 -->
   <bean id="jedisClient" class="com.cloud.operation.core.utils.JedisClient">
