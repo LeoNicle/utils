@@ -1,8 +1,10 @@
 package com.leo.cache;
 
+import com.leo.cache.config.Myconfig;
 import com.leo.cache.entity.Employee;
 import com.leo.cache.mapper.EmployeeMapper;
 import com.leo.cache.service.LuaService;
+import com.leo.cache.utils.RedisDelayingQueue;
 import com.leo.cache.utils.RedisDistributedLock;
 import com.leo.cache.utils.RedisWithReentrantLock;
 import org.junit.Test;
@@ -20,11 +22,8 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -45,6 +44,33 @@ public class CacheSpringBootApplicationTests {
     @Autowired
     RedisDistributedLock redisDistributedLock;
 
+    @Autowired
+    Myconfig myconfig;
+
+    @Test
+    public void testDelayQueue() throws Exception{
+        RedisDelayingQueue<Map> mapRedisDelayingQueue = new RedisDelayingQueue<Map>("delaytest",redisTemplate,myconfig.getRedisHost(),myconfig.getRedisPort());
+
+        Runnable run = new Runnable() {
+            @Override
+            public void run() {
+                mapRedisDelayingQueue.loop();
+            }
+        };
+        System.out.println("======");
+        for (int i = 0; i < 3; i++) {
+            new Thread(run,"线程"+i).start();
+        }
+
+        for (int i = 0; i <2 ; i++) {
+            HashMap map=new HashMap();
+            map.put(i,"value"+i);
+            mapRedisDelayingQueue.delay(map);
+            TimeUnit.SECONDS.sleep(5);
+        }
+
+    }
+
     @Test
     public void contextLoads() {
         Employee emp = employeeMapper.getEmpById(1);
@@ -59,20 +85,20 @@ public class CacheSpringBootApplicationTests {
         //定义返回类型。注意如果没有这个定义，spring不会返回结果
         rs.setResultType(String.class);
 
-        String sha1 = rs.getSha1();
-        System.out.println(sha1);
-        String str = (String)redisTemplate.execute(new RedisCallback() {
-            @Override
-            public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
-                return redisConnection.evalSha(sha1, ReturnType.STATUS, 0, "".getBytes());
-            }
-        });
-        System.out.println(str);
-
-
-//        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
-//        String str = (String)redisTemplate.execute(rs,stringRedisSerializer,stringRedisSerializer,null);
+//        String sha1 = rs.getSha1();
+//        System.out.println(sha1);
+//        String str = (String)redisTemplate.execute(new RedisCallback() {
+//            @Override
+//            public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
+//                return redisConnection.evalSha(sha1, ReturnType.STATUS, 0, "".getBytes());
+//            }
+//        });
 //        System.out.println(str);
+
+
+        RedisSerializer<String> stringRedisSerializer = redisTemplate.getStringSerializer();
+        String str = (String)redisTemplate.execute(rs,stringRedisSerializer,stringRedisSerializer,null);
+        System.out.println(str);
     }
 
     @Test
@@ -168,8 +194,8 @@ public class CacheSpringBootApplicationTests {
                 for(int i =0 ;i<5;i++){
                     if(redisDistributedLock.setLock("lockKey",Thread.currentThread().getName(),5,TimeUnit.SECONDS)) {
                         System.out.println(Thread.currentThread().getName() + "得到了锁");
-                        value = redisDistributedLock.get("lockKey");
-                        //解锁
+                         value = redisDistributedLock.get("lockKey");
+                         //解锁
                         boolean result = redisDistributedLock.releaseLock("lockKey", value);
                         System.out.println(value+"解锁："+result);
                     }else{
@@ -185,10 +211,10 @@ public class CacheSpringBootApplicationTests {
         countDownLatch.await();
         //超期解锁测试
         try {
-            TimeUnit.SECONDS.sleep(10);
-        }catch (InterruptedException e){
+                        TimeUnit.SECONDS.sleep(10);
+                    }catch (InterruptedException e){
 
-        }
+                    }
         //
         if(value==null){
             throw new RuntimeException("value is null");
@@ -220,17 +246,17 @@ public class CacheSpringBootApplicationTests {
             System.out.println("加锁"+lock+"后count:"+redisWithReentrantLock.getcount("relockkey"));
             TimeUnit.SECONDS.sleep(1);
         }
-        while(true){
-            boolean unlock = redisWithReentrantLock.unlock("relockkey", "relockvalue");
-            if(redisWithReentrantLock.getcount("relockkey")<=0){
-                System.out.println("全部解锁成功");
-                //再试一次
+    while(true){
+        boolean unlock = redisWithReentrantLock.unlock("relockkey", "relockvalue");
+        if(redisWithReentrantLock.getcount("relockkey")<=0){
+            System.out.println("全部解锁成功");
+            //再试一次
 //            System.out.println(redisWithReentrantLock.unlock("relockkey", "relockvalue"));
-                return;
-            }
-            System.out.println("此次解锁："+unlock+"后："+redisWithReentrantLock.getcount("relockkey"));
+            return;
         }
+        System.out.println("此次解锁："+unlock+"后："+redisWithReentrantLock.getcount("relockkey"));
+    }
 
-        //
+    //
     }
 }

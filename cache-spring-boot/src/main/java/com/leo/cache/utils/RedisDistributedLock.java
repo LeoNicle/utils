@@ -87,9 +87,9 @@ public class RedisDistributedLock {
 
 
     //以下是以纯lua方式做的分布式锁
-    /**  private static final Long SUCCESS = 1L;
+  /**  private static final Long SUCCESS = 1L;
 
-     /**
+    /**
      * 获取锁
      * @param lockKey
      * @param value
@@ -97,22 +97,22 @@ public class RedisDistributedLock {
      * @return
      *
     public static boolean getLock(StringRedisTemplate stringRedisTemplate,String lockKey, String value, int expireTime){
-    boolean ret = false;
-    try{
-    String script = "if redis.call('setNx',KEYS[1],ARGV[1]) then if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('expire',KEYS[1],ARGV[2]) else return 0 end end";
+        boolean ret = false;
+        try{
+            String script = "if redis.call('setNx',KEYS[1],ARGV[1]) then if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('expire',KEYS[1],ARGV[2]) else return 0 end end";
 
-    RedisScript<String> redisScript = new DefaultRedisScript<>(script, String.class);
+            RedisScript<String> redisScript = new DefaultRedisScript<>(script, String.class);
 
-    Object result = stringRedisTemplate.execute(redisScript, Collections.singletonList(lockKey),value,expireTime);
+            Object result = stringRedisTemplate.execute(redisScript, Collections.singletonList(lockKey),value,expireTime);
 
-    if(SUCCESS.equals(result)){
-    return true;
-    }
+            if(SUCCESS.equals(result)){
+                return true;
+            }
 
-    }catch(Exception e){
+        }catch(Exception e){
 
-    }
-    return ret;
+        }
+        return ret;
     }
 
     /**
@@ -123,16 +123,16 @@ public class RedisDistributedLock {
      *
     public static boolean releaseLock(StringRedisTemplate stringRedisTemplate,String lockKey, String value){
 
-    String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 
-    RedisScript<String> redisScript = new DefaultRedisScript<>(script, String.class);
+        RedisScript<String> redisScript = new DefaultRedisScript<>(script, String.class);
 
-    Object result = stringRedisTemplate.execute(redisScript, Collections.singletonList(lockKey),value);
-    if(SUCCESS.equals(result)) {
-    return true;
+        Object result = stringRedisTemplate.execute(redisScript, Collections.singletonList(lockKey),value);
+        if(SUCCESS.equals(result)) {
+            return true;
+        }
+
+        return false;
     }
-
-    return false;
-    }
-     */
+*/
 }

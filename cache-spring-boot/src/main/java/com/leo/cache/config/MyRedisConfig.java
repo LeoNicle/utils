@@ -34,7 +34,7 @@ import java.util.Set;
 public class MyRedisConfig extends CachingConfigurerSupport {
     @Bean
     public RedisTemplate<Object, Employee> employeeRedisTemplate(
-            RedisConnectionFactory redisConnectionFactory) {
+            LettuceConnectionFactory redisConnectionFactory) {
         RedisTemplate<Object, Employee> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(redisConnectionFactory);
         Jackson2JsonRedisSerializer<Employee> serializer = new Jackson2JsonRedisSerializer<Employee>(Employee.class);

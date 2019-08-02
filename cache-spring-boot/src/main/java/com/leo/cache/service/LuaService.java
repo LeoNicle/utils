@@ -42,7 +42,7 @@ public class LuaService {
         return bool;
     }
 
-    //一下代码封装性比较好
+//一下代码封装性比较好
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
