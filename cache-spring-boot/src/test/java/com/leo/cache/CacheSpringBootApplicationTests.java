@@ -47,6 +47,21 @@ public class CacheSpringBootApplicationTests {
     @Autowired
     Myconfig myconfig;
 
+
+    //
+    @Test
+    public void pfadd(){
+        for (int i = 0; i <1000 ; i++) {
+            redisTemplate.opsForHyperLogLog().add("user","user"+i);
+            redisTemplate.opsForHyperLogLog().add("用户","用户"+i);
+        }
+        System.out.println("======");
+
+        System.out.println(redisTemplate.opsForHyperLogLog().size("user"));
+        System.out.println(redisTemplate.opsForHyperLogLog().size("用户"));
+        System.out.println(redisTemplate.opsForHyperLogLog().size("user","用户"));
+    }
+
     @Test
     public void testDelayQueue() throws Exception{
         RedisDelayingQueue<Map> mapRedisDelayingQueue = new RedisDelayingQueue<Map>("delaytest",redisTemplate,myconfig.getRedisHost(),myconfig.getRedisPort());
@@ -194,8 +209,8 @@ public class CacheSpringBootApplicationTests {
                 for(int i =0 ;i<5;i++){
                     if(redisDistributedLock.setLock("lockKey",Thread.currentThread().getName(),5,TimeUnit.SECONDS)) {
                         System.out.println(Thread.currentThread().getName() + "得到了锁");
-                         value = redisDistributedLock.get("lockKey");
-                         //解锁
+                        value = redisDistributedLock.get("lockKey");
+                        //解锁
                         boolean result = redisDistributedLock.releaseLock("lockKey", value);
                         System.out.println(value+"解锁："+result);
                     }else{
@@ -211,10 +226,10 @@ public class CacheSpringBootApplicationTests {
         countDownLatch.await();
         //超期解锁测试
         try {
-                        TimeUnit.SECONDS.sleep(10);
-                    }catch (InterruptedException e){
+            TimeUnit.SECONDS.sleep(10);
+        }catch (InterruptedException e){
 
-                    }
+        }
         //
         if(value==null){
             throw new RuntimeException("value is null");
@@ -246,17 +261,17 @@ public class CacheSpringBootApplicationTests {
             System.out.println("加锁"+lock+"后count:"+redisWithReentrantLock.getcount("relockkey"));
             TimeUnit.SECONDS.sleep(1);
         }
-    while(true){
-        boolean unlock = redisWithReentrantLock.unlock("relockkey", "relockvalue");
-        if(redisWithReentrantLock.getcount("relockkey")<=0){
-            System.out.println("全部解锁成功");
-            //再试一次
+        while(true){
+            boolean unlock = redisWithReentrantLock.unlock("relockkey", "relockvalue");
+            if(redisWithReentrantLock.getcount("relockkey")<=0){
+                System.out.println("全部解锁成功");
+                //再试一次
 //            System.out.println(redisWithReentrantLock.unlock("relockkey", "relockvalue"));
-            return;
+                return;
+            }
+            System.out.println("此次解锁："+unlock+"后："+redisWithReentrantLock.getcount("relockkey"));
         }
-        System.out.println("此次解锁："+unlock+"后："+redisWithReentrantLock.getcount("relockkey"));
-    }
 
-    //
+        //
     }
 }
