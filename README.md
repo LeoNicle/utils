@@ -2,3 +2,8 @@
 utils for dev
 这里存储的是开发使用的一些工具类或者文档
 该文档在生成分布式全局唯一id方面做得有问题，解决方案：snowflake
+
+
+jdbctemplate(statementCallback、 ConnectionCallback) ，callback接口是支持在一条数据库连接中执行多条sQL
+redistemplate(SessionCallback RedisCallback接口)，作用是让RedisTemplate 进行回调 ，通过callback可以在同一条连接下执行多个Redis命令。
+但是不到万不得已不要使用rediscallback接口，因为它比较底层，可读性差。sessioncallback对开发者比较友好，封装比较好。
