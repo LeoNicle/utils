@@ -1,27 +1,25 @@
 package com.leo.cache;
 
+import com.google.common.hash.Funnels;
 import com.leo.cache.config.Myconfig;
 import com.leo.cache.entity.Employee;
 import com.leo.cache.mapper.EmployeeMapper;
 import com.leo.cache.service.LuaService;
-import com.leo.cache.utils.RedisDelayingQueue;
-import com.leo.cache.utils.RedisDistributedLock;
-import com.leo.cache.utils.RedisWithReentrantLock;
+import com.leo.cache.utils.delayqueue.RedisDelayingQueue;
+import com.leo.cache.utils.bloom.BloomFilterHelper;
+import com.leo.cache.utils.bloom.RedisBloomFilter;
+import com.leo.cache.utils.lock.RedisDistributedLock;
+import com.leo.cache.utils.lock.RedisWithReentrantLock;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.neo4j.DataNeo4jTest;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.ReturnType;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -47,8 +45,47 @@ public class CacheSpringBootApplicationTests {
     @Autowired
     Myconfig myconfig;
 
+    //漏斗限流--避免简单限流弊端（短时间大访问规定时，造成存储浪费）
+    @Test
+    public void testFunnelRateLimiter(){
+//        String key = String.format("%s:%s-%s", "leoid", "leokey","leo2");组装修改字符串格式
+//        System.out.println(key);
+    }
 
-    //
+    //简单限流--移动窗口，目前还未写完
+    @Test
+    public void testSimpleRateLimiter(){
+
+    }
+
+
+    //测试布隆过滤器
+
+    /**
+     * 布隆过滤器对于已经见过的元素肯定不会误判，它只会误判那些没见过的元
+     * 素。它说见过，可能压根没见过。他说没见过，就一定没见过。
+     */
+    @Autowired
+    private RedisBloomFilter redisBloomFilter;
+    @Test
+    public void testBloom(){
+        BloomFilterHelper<CharSequence> bloomFilterHelper=new BloomFilterHelper<>(Funnels.stringFunnel(Charset.defaultCharset()),10000,0.1);
+        int j = 0;
+        for (int i = 0; i < 1000; i++) {
+            redisBloomFilter.addByBloomFilter(bloomFilterHelper, "bloom", i+"");
+        }
+        for (int i = 1001; i <=2000; i++) {
+            boolean result = redisBloomFilter.includeByBloomFilter(bloomFilterHelper, "bloom", i+"");
+            if (!result) {
+                j++;
+            }else{
+                System.out.println("见过"+i);
+            }
+        }
+        System.out.println("有" + j + "个没见过");
+    }
+
+    //测试hyperloglog,提供不精确的去重统计，比set节省空间。
     @Test
     public void pfadd(){
         for (int i = 0; i <1000 ; i++) {
@@ -62,9 +99,19 @@ public class CacheSpringBootApplicationTests {
         System.out.println(redisTemplate.opsForHyperLogLog().size("user","用户"));
     }
 
+    /**
+     * 延时队列，待思考,待优化
+     * @throws Exception
+     */
     @Test
     public void testDelayQueue() throws Exception{
         RedisDelayingQueue<Map> mapRedisDelayingQueue = new RedisDelayingQueue<Map>("delaytest",redisTemplate,myconfig.getRedisHost(),myconfig.getRedisPort());
+
+        for (int i = 0; i <5 ; i++) {
+            HashMap map=new HashMap();
+            map.put(i,"value"+i);
+            mapRedisDelayingQueue.delay(map,i);
+        }
 
         Runnable run = new Runnable() {
             @Override
@@ -73,17 +120,12 @@ public class CacheSpringBootApplicationTests {
             }
         };
         System.out.println("======");
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 5; i++) {
             new Thread(run,"线程"+i).start();
         }
 
-        for (int i = 0; i <2 ; i++) {
-            HashMap map=new HashMap();
-            map.put(i,"value"+i);
-            mapRedisDelayingQueue.delay(map);
-            TimeUnit.SECONDS.sleep(5);
-        }
-
+        TimeUnit.SECONDS.sleep(20);
+        System.out.println("end");
     }
 
     @Test
@@ -92,6 +134,9 @@ public class CacheSpringBootApplicationTests {
         employeeRedisTemplate.opsForValue().set("demo-01",emp);
     }
 
+    /**
+     * 简单测试lua脚本
+     */
     @Test
     public  void test1(){
         DefaultRedisScript<String> rs = new DefaultRedisScript<String>();
@@ -116,6 +161,10 @@ public class CacheSpringBootApplicationTests {
         System.out.println(str);
     }
 
+    /**
+     * lua-redis案例
+     * 定义lua脚本：判断两个字符串是否相同
+     */
     @Test
     public void test2(){
         //定义lua脚本：判断两个字符串是否相同
@@ -158,6 +207,13 @@ public class CacheSpringBootApplicationTests {
         System.out.println(restult==1);
     }
 
+    /**
+     * lua脚本方式实现限流-
+     * 弊端：当规定时间内没有超，但是第5秒请求了2次（假定规定是5秒内5次），第六秒
+     * 请求了3次，第七秒请求到达时是可以，但是这样的话，5和6秒已经达到规定，7秒却可以访问，不太符合。
+     * 这个相当于把时间分成一个一个的时间段。不如使用zset做的简单移动窗口限流器
+     * @throws Exception
+     */
     @Test
     public void test3() throws Exception {
         while(true){
